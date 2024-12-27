@@ -1,4 +1,5 @@
 import telebot
+from collections import defaultdict
 from logic import Question
 
 API_TOKEN = 'YOUR_API_TOKEN'  # Замените на ваш токен бота
@@ -11,8 +12,9 @@ quiz_questions = [
     Question("Какой язык программирования самый популярный?", 1, "Python", "Java", "C++")
 ]
 
-# Словарь для отслеживания ответов пользователей
+# Словари для отслеживания ответов пользователей и их очков
 user_responses = {}
+points = defaultdict(int)
 
 @bot.message_handler(commands=['start'])
 def send_question(chat_id):
@@ -25,7 +27,7 @@ def send_question(chat_id):
         question = quiz_questions[question_index]
         bot.send_message(chat_id, question.text, reply_markup=question.generate_keyboard())
     else:
-        bot.send_message(chat_id, "The end")  # Если вопросы закончились
+        bot.send_message(chat_id, f"The end! Ваши очки: {points[chat_id]}")  # Отправляем количество очков
 
 @bot.callback_query_handler(func=lambda call: True)
 def handle_answer(call):
@@ -34,6 +36,7 @@ def handle_answer(call):
 
     if call.data == "correct":
         bot.answer_callback_query(call.id, "Правильный ответ!")
+        points[chat_id] += 1  # Добавляем очки за правильный ответ
     else:
         bot.answer_callback_query(call.id, "Неправильный ответ.")
 
