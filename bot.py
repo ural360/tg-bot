@@ -1,45 +1,46 @@
 import telebot
-import config
+from logic import Question
 
-
-API_TOKEN = config.token
-
+API_TOKEN = 'YOUR_API_TOKEN'  # Замените на ваш токен бота
 bot = telebot.TeleBot(API_TOKEN)
 
-class MyClass:
-    def __init__(self, value1, value2):
-        self.value1 = value1
-        self.value2 = value2
+# Словарь для хранения вопросов
+quiz_questions = [
+    Question("Какой цвет неба?", 0, "Синий", "Зеленый", "Красный"),
+    Question("Сколько дней в неделе?", 2, "5", "6", "7"),
+    Question("Какой язык программирования самый популярный?", 1, "Python", "Java", "C++")
+]
 
-    def __str__(self):
-        return f"Данные экземпляра: Данные номер 1:{self.value1}, данные номер 2:{self.value2} "
-        
+# Словарь для отслеживания ответов пользователей
+user_responses = {}
 
-@bot.message_handler(commands=['help', 'start'])
-def send_welcome(message):
-    bot.reply_to(message, """\
-Hi there, I am UralsBot.
-I am here to echo your kind words back to you. Just say anything nice and I'll say the exact same thing to you!\
-""")
-@bot.message_handler(commands=['info'])
-def send_inf(message):
-    bot.reply_to(message, """\
-I am UralsBot.
-I am created by Ural developer\
-""")
-@bot.message_handler(commands=['create'])
-def create_instance(message): 
-        args = message.text.split()[1:]  
-        if len(args) != 2:
-            bot.reply_to(message, "Пожалуйста, введите два значения. Пример: /create значение1 значение2")
-        value1 = args[0]
-        value2 = args[1]
-        instance = MyClass(value1, value2)
-        bot.reply_to(message, f"Экземпляр создан: {instance}")
+@bot.message_handler(commands=['start'])
+def send_question(chat_id):
+    if chat_id not in user_responses:
+        user_responses[chat_id] = 0  # Первое сообщение для пользователя, ставим 0
 
-@bot.message_handler(func=lambda message: True)
-def echo_message(message):
-    bot.reply_to(message, message.text)
+    question_index = user_responses[chat_id]  # получаем номер последнего вопроса
 
+    if question_index < len(quiz_questions):  # если есть еще вопросы
+        question = quiz_questions[question_index]
+        bot.send_message(chat_id, question.text, reply_markup=question.generate_keyboard())
+    else:
+        bot.send_message(chat_id, "The end")  # Если вопросы закончились
 
-bot.infinity_polling()
+@bot.callback_query_handler(func=lambda call: True)
+def handle_answer(call):
+    chat_id = call.message.chat.id
+    question_index = user_responses[chat_id]
+
+    if call.data == "correct":
+        bot.answer_callback_query(call.id, "Правильный ответ!")
+    else:
+        bot.answer_callback_query(call.id, "Неправильный ответ.")
+
+    user_responses[chat_id] += 1  # увеличиваем номер последнего вопроса
+
+    # Отправляем следующий вопрос или сообщение о завершении
+    send_question(chat_id)
+
+if __name__ == "__main__":
+    bot.polling()
